@@ -1,123 +1,287 @@
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
 #include <Servo.h>
 
-//declare analog pin connections
-const int pinkieF = A0;
-const int indexF = A3;
-const int ringF = A1;
-const int middleF = A2;
-const int thumbF = A4;
 
-int value; //for the finger values
-int pos = 0;
+RF24 radio(12, 13); // CE, CSN
+const byte addresses[][6] = {"00001", "00002"};
+Servo pinkieS,indexS,ringS,middleS,thumbS;
 
-const int motorDelay = 50;
+int countdelay = 1000;
+int actiondelay = 100;
+long randNumber;
+int value[4];
 
-Servo pinkieS;
-Servo indexS;
-Servo ringS;
-Servo middleS;
-Servo thumbS;
-
-//max values for fingers. Fingers are curled. Preset Values are estimates; will be updated during calibration.
-int pinkieMaxInput = 850;
-int indexMaxInput = 850;
-int ringMaxInput = 850;
-int middleMaxInput = 850;
-int thumbMaxInput = 850;
-
-//min values for fingers. Fingers are stretched out. Preset Values are estimates; will be updated during calibration.
-int pinkieMinInput = 550;
-int indexMinInput = 550;
-int ringMinInput = 550;
-int middleMinInput = 550;
-int thumbMinInput = 550;
-
-//max values for servos
-//these will be hardcoded once mounted and measured
-int pinkieMaxOutput = 180;
-int indexMaxOutput = 180;
-int ringMaxOutput = 180;
-int middleMaxOutput = 180;
-int thumbMaxOutput = 180;
-
-//min values for servos
-//these will be hardcoded once mounted and measured
-int pinkieMinOutput = 0;
-int indexMinOutput = 0;
-int ringMinOutput = 0;
-int middleMinOutput = 0;
-int thumbMinOutput = 0;
+const int palmbutton = 22;
+const int fistbutton = 23;
+const int wakkabutton = 24;
+const int ilubutton = 25;
+const int countbutton = 26;
+const int rpsbutton = 27;
+const int wavebutton = 28;
+// the reset button is plugged into pin 7
+const int resetbutton = 29;
+const int switcheroo = 7;
 
 void setup()
 {
-  Serial.begin(9600);       //Begin serial communication
+  Serial.begin(9600);
   pinkieS.attach(2);
-  indexS.attach(4);
-  ringS.attach(6);
-  middleS.attach(8);
+  indexS.attach(8);
+  ringS.attach(4);
+  middleS.attach(6);
   thumbS.attach(10);
-
-  // calibration
-
-  // if (button is pushed)
-  // calibrationMin()
-
+  randomSeed(analogRead(0));
+  //Buttons
+  pinMode (palmbutton, INPUT_PULLUP);
+  pinMode (fistbutton, INPUT_PULLUP);
+  pinMode (wakkabutton, INPUT_PULLUP);
+  pinMode (ilubutton, INPUT_PULLUP);
+  pinMode (countbutton, INPUT_PULLUP);
+  pinMode (rpsbutton, INPUT_PULLUP);
+  pinMode (wavebutton, INPUT_PULLUP);
+  pinMode (7, INPUT_PULLUP);
+  pinMode (resetbutton, INPUT_PULLUP);
+  pinMode (switcheroo, INPUT_PULLUP);
+  radio.begin();
+  radio.openWritingPipe(addresses[0]); // 00001
+  radio.openReadingPipe(1, addresses[1]); // 00002
+  radio.setPALevel(RF24_PA_MIN);
+  radio.startListening();
+  zero();
 }
 
-//void servomovement(
-
-void loop()
-{
-  value = analogRead(pinkieF);         //Read and save analog value from potentiometer
-  Serial.println(value);               //Print value
-  pos = map(value, pinkieMinInput, pinkieMaxInput, pinkieMinOutput, pinkieMaxOutput);//Map value 0-1023 to 0-255 (PWM)
-  delay(motorDelay);                          //Small delay
-  pinkieS.write(pos);              // tell servo to go to position in variable 'pos'
-  delay(15);
-
-  value = analogRead(indexF);         //Read and save analog value from potentiometer
-  //Serial.println(value);               //Print value
-  pos = map(value, 500, 900, 0, 180);//Map value 0-1023 to 0-255 (PWM)
-  delay(motorDelay);                          //Small delay
-  indexS.write(pos);              // tell servo to go to position in variable 'pos'
-  delay(15);
-
-  value = analogRead(ringF);         //Read and save analog value from potentiometer
-  //Serial.println(value);               //Print value
-  pos = map(value, 500, 900, 0, 180);//Map value 0-1023 to 0-255 (PWM)
-  delay(motorDelay);                          //Small delay
-  ringS.write(pos);              // tell servo to go to position in variable 'pos'
-  delay(15);
-
-  value = analogRead(middleF);         //Read and save analog value from potentiometer
-  //Serial.println(value);               //Print value
-  pos = map(value, 500, 900, 0, 180);//Map value 0-1023 to 0-255 (PWM)
-  delay(motorDelay);                          //Small delay
-  middleS.write(pos);              // tell servo to go to position in variable 'pos'
-  delay(15);
-
-  value = analogRead(thumbF);         //Read and save analog value from potentiometer
-  //Serial.println(value);               //Print value
-  pos = map(value, 500, 900, 0, 180);//Map value 0-1023 to 0-255 (PWM)
-  delay(motorDelay);                          //Small delay
-  thumbS.write(pos);              // tell servo to go to position in variable 'pos'
-  delay(15);
+void loop() {
+// fist();
+  btnLoop();
+  
 }
 
-void calibrationMin()
-{
-  pinkieMinInput = analogRead(pinkieF);
-  indexMinInput = analogRead(indexF);
-  ringMinInput = analogRead(ringF);
-  middleMinInput = analogRead(middleF);
-  thumbMinInput = analogRead(thumbF);
+void btnLoop() {
+  if (digitalRead(switcheroo) == LOW) {
+    Serial.println("Button Loop");
+    if (digitalRead(palmbutton) == LOW) {
+      zero();
+    } else if (digitalRead(fistbutton) == LOW) {
+      fist();
+      delay(2000);
+    } else if (digitalRead(wakkabutton) == LOW) {
+      wakka();
+      delay(2000);
+    } else if (digitalRead(ilubutton) == LOW) {
+      iLu();
+      delay(2000);
+    } else if (digitalRead(countbutton) == LOW) {
+      count();
+    } else if (digitalRead(rpsbutton) == LOW) {
+      rPs();
+    } else if (digitalRead(wavebutton) == LOW) {
+      wave();
+  //  } else if (digitalRead(resetbutton) == LOW) {
+  //    presentation();
+    } else {
+      zero();
+    }
+  } else {
+      if(radio.available()){
+        while (radio.available()) {
+          radio.read(value, sizeof(value));
+          pinkieS.write(value[0]);
+          indexS.write(value[1]);
+          ringS.write(value[2]);
+          middleS.write(value[3]);
+          thumbS.write(value[1]);
+      }
+    }
+  }
 }
 
-void calibrationMax()
+void presentation() {
+  while (true) {
+    Serial.println("Presentation Mode activated");
+    zero();
+    delay(2000);
+    fist();
+    delay(2000);
+    wakka();
+    delay(2000);
+    iLu();
+    delay(2000);
+    Serial.println("Presentation mode loop iteration complete");
+    // switch breakout code needed
+  }
+}
+
+void wave()
 {
-  pinkieMaxInput = analogRead(pinkieF);
-  indexMaxInput = analogRead(indexF);
-  ringMaxInput = analogRead(ringF);
-  middleMaxInput = analogRead(middleF);
-  thumbMaxInput = analogRead(thumbF);
+  zero();
+  
+  thumbS.write(170);
+  
+  delay(100);
+  
+  while(true)
+  {
+    for (int t = 0; t<170; t++)
+    {
+      if (t >= 30)
+        pinkieS.write(t);
+
+      if (t >= 60)
+        ringS.write(t);
+
+      if (t >= 90)
+         middleS.write(t);
+
+      if (t >= 120)
+         indexS.write(t);
+     
+      delay(5);
+    }
+    
+    for (int t = 170; t > 20; t--)
+    {
+      if (t <= 170)
+        pinkieS.write(t);
+
+      if (t <= 110)
+        ringS.write(t);
+
+      if (t <= 80)
+        middleS.write(t);
+
+      if (t <= 50)
+        indexS.write(t);
+      
+      delay(5);
+    }
+      if (digitalRead(resetbutton) == LOW) 
+      {
+        break;
+        delay(100);
+        presentation();
+      }
+   }
+}
+
+void rPs()
+{
+  countdown();
+  delay(100);
+  randNumber = random(0,3);
+  Serial.println(randNumber);
+  if (randNumber == 0)
+  {
+    zero();
+    delay(1000);
+  }
+  else if (randNumber == 1)
+  {
+    fist();
+    delay(1000);
+  }
+  else if (randNumber == 2)
+  {
+    scissors();
+    delay(1000);
+  }
+}
+
+void zero()
+{
+  pinkieS.write(20);
+  indexS.write(20);
+  ringS.write(20);
+  middleS.write(20);
+  thumbS.write(20);
+}
+
+void wakka()
+{
+  pinkieS.write(20);
+  indexS.write(170);
+  ringS.write(170);
+  middleS.write(170);
+  thumbS.write(20);
+}
+
+void iLu()
+{
+  pinkieS.write(20);
+  indexS.write(20);
+  ringS.write(170);
+  middleS.write(170);
+  thumbS.write(20);
+}
+
+void fist(){
+  pinkieS.write(140);
+  indexS.write(150);
+  ringS.write(150);
+  middleS.write(160);
+  thumbS.write(145);
+}
+
+void testFingers()
+{
+  pinkieS.write(140);
+  indexS.write(150);
+  thumbS.write(145);
+  ringS.write(150);
+  middleS.write(150);
+  delay(2000);
+  pinkieS.write(20);
+  indexS.write(20);
+  thumbS.write(20);
+  ringS.write(20);
+  middleS.write(20);
+  delay(1000);
+}
+
+void count()
+{
+  fist();
+  delay(1000);
+  indexS.write(20);
+  delay(countdelay);
+  middleS.write(20);
+  delay(countdelay);
+  ringS.write(20);
+  delay(countdelay);
+  pinkieS.write(20);
+  delay(countdelay);
+  thumbS.write(20);
+  delay(countdelay);
+}
+
+void countdown()
+{
+  pinkieS.write(140);
+  indexS.write(20);
+  thumbS.write(145);
+  ringS.write(20);
+  middleS.write(20);
+  delay(700);
+  pinkieS.write(140);
+  indexS.write(20);
+  thumbS.write(145);
+  ringS.write(150);
+  middleS.write(20);
+  delay(700);
+  pinkieS.write(140);
+  indexS.write(20);
+  thumbS.write(145);
+  ringS.write(150);
+  middleS.write(160);
+  delay(700);
+}
+
+void scissors()
+{
+  indexS.write(20);
+  middleS.write(20);
+  pinkieS.write(140);
+  ringS.write(150);
+  thumbS.write(145);
 }
