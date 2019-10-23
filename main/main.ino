@@ -62,7 +62,8 @@ void btnLoop() {
   if (digitalRead(switcheroo) == LOW) {
     Serial.println("Button Loop");
     if (digitalRead(palmbutton) == LOW) {
-      zero();
+      peace();
+      delay(2000);
     } else if (digitalRead(fistbutton) == LOW) {
       fist();
       delay(2000);
@@ -84,14 +85,27 @@ void btnLoop() {
       zero();
     }
   } else {
-      if(radio.available()){
+      if (radio.available()){
         while (radio.available()) {
           radio.read(value, sizeof(value));
-          pinkieS.write(value[0]);
-          indexS.write(value[1]);
-          ringS.write(value[2]);
-          middleS.write(value[3]);
-          thumbS.write(value[1]);
+          int thumbValue = value[1];
+          int indexValue = value[1];
+          int middleValue = value[3];
+          int ringValue = value[2];
+          int pinkieValue = value[0];
+
+          // obscene gesture prevention Algorithm (patent pending) (TM) (SM) (R) (C) 2019
+          if (middleValue < 50 && (thumbValue > 80) && (indexValue > 80) 
+            && (ringValue > 80) && (pinkieValue > 80))
+          {
+            middleValue = 150;
+          }
+          
+          pinkieS.write(pinkieValue);
+          indexS.write(indexValue);
+          ringS.write(ringValue);
+          middleS.write(middleValue);
+          thumbS.write(thumbValue);
       }
     }
   }
@@ -162,6 +176,10 @@ void wave()
         delay(100);
         presentation();
       }
+      
+      if (digitalRead(wavebutton) == HIGH) {
+        break;
+      }
    }
 }
 
@@ -186,6 +204,14 @@ void rPs()
     scissors();
     delay(1000);
   }
+}
+
+void peace(){
+  pinkieS.write(160);
+  indexS.write(20);
+  ringS.write(160);
+  middleS.write(20);
+  thumbS.write(160);
 }
 
 void zero()
